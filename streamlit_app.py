@@ -584,7 +584,7 @@ if len(loaded) == 1 or display_mode.startswith("Overlay"):
 else:
     fig = make_stacked_figure(data)
 
-st.plotly_chart(fig, width=True, config={"displaylogo": False})
+st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Export — current window & custom range
@@ -669,7 +669,7 @@ if show_preview:
     st.subheader("Per-file previews")
     for name, df0 in loaded.items():
         st.caption(f"{name}: {len(df0):,} rows")
-        st.dataframe(df0.head(10), width=True)
+        st.dataframe(df0.head(10), use_container_width=True)
 
 if show_debug:
     st.subheader("Debug / Diagnostics")
