@@ -1,1 +1,7 @@
-streamlit
+streamlit>=1.31
+pandas>=2.1
+plotly>=5.22
+
+# Optional (only if you use these features in the app):
+kaleido>=0.2.1     # for PNG/SVG export of charts
+pyarrow>=15.0      # for parquet caching (faster reloads)
