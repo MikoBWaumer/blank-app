@@ -677,7 +677,7 @@ def make_stacked_figure(df: pd.DataFrame) -> "go.Figure":
 # ──────────────────────────────────────────────────────────────────────────────
 # Draw chart
 # ──────────────────────────────────────────────────────────────────────────────
-st.subheader("Chart")
+st.subheader("Shart")
 if not HAS_PLOTLY:
     st.error("Plotly is not installed. Add `plotly` to requirements.txt and redeploy.")
     st.stop()
