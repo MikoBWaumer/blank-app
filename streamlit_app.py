@@ -643,7 +643,6 @@ with st.expander("Custom time range export"):
             except Exception as e:
                 st.error(f"Invalid relative seconds: {e}")
 
-
 with st.expander("Download chart as image (PNG / SVG)"):
     # --- Controls ---
     c1, c2, c3 = st.columns([1.2, 1.2, 1])
@@ -709,6 +708,9 @@ with st.expander("Download chart as image (PNG / SVG)"):
     # Optional quick info
     st.caption(f"Output resolution (after scale): **{int(png_w * png_scale)} × {int(png_h * png_scale)} px**")
 
+st.download_button("Download combined filtered data (CSV)",
+                   data=data.to_csv(index=False).encode("utf-8"),
+                   file_name="combined_filtered.csv", mime="text/csv")
 
 # Optional previews & debug
 show_preview = st.session_state.get("_show_preview", False) or False  # keep sidebar values above
