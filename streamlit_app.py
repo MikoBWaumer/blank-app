@@ -145,7 +145,7 @@ with st.sidebar:
                       index=0 if qp_get_str("x","ts")=="ts" else 1)
 
     resample_rule = st.selectbox("Resample (time aggregation)",
-                                 ["None", "0.5", "1s", "5s", "10s", "30s", "1min", "5min"],
+                                 ["None", "500ms", "1s", "5s", "10s", "30s", "1min", "5min"],
                                  index=["None","1s","5s","10s","30s","1min","5min"].index(qp_get_str("rs","5s")))
     aggregator = st.selectbox("Aggregation", ["mean","median","min","max"],
                               index=["mean","median","min","max"].index(qp_get_str("agg","mean")))
