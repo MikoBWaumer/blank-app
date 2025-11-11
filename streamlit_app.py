@@ -643,22 +643,72 @@ with st.expander("Custom time range export"):
             except Exception as e:
                 st.error(f"Invalid relative seconds: {e}")
 
+
 with st.expander("Download chart as image (PNG / SVG)"):
+    # --- Controls ---
+    c1, c2, c3 = st.columns([1.2, 1.2, 1])
+    with c1:
+        png_w = st.number_input("PNG width (px)", min_value=200, max_value=12000, value=1920, step=10)
+    with c2:
+        png_h = st.number_input("PNG height (px)", min_value=200, max_value=12000, value=1080, step=10)
+    with c3:
+        png_scale = st.slider("Scale (×)", 0.5, 4.0, 1.5, 0.1, help="Multiplies width & height for extra sharpness")
+
+    c4, c5 = st.columns([1, 1])
+    with c4:
+        st.caption("Aspect ratio presets")
+        pr1, pr2, pr3 = st.columns(3)
+        if pr1.button("16:9"):
+            st.session_state["_png_ratio"] = (16, 9)
+            # adjust height to keep width
+            st.experimental_rerun()
+        if pr2.button("4:3"):
+            st.session_state["_png_ratio"] = (4, 3)
+            st.experimental_rerun()
+        if pr3.button("1:1"):
+            st.session_state["_png_ratio"] = (1, 1)
+            st.experimental_rerun()
+    with c5:
+        transparent = st.checkbox("Transparent background", value=False)
+        bg_color = st.color_picker("Background (PNG)", value="#ffffff", help="Ignored if Transparent is checked")
+
+    # Apply session ratio if set (keeps current width, adjusts height)
+    ratio = st.session_state.get("_png_ratio")
+    if ratio:
+        rw, rh = ratio
+        # compute height from current width
+        new_h = int(round(png_w * (rh / rw)))
+        if new_h != png_h:
+            # update height via rerun
+            st.session_state["_force_png_h"] = new_h
+            # quick hack to reflect new height immediately:
+            st.markdown(f"<script>window.location.reload();</script>", unsafe_allow_html=True)
+
+    # Background handling with a cloned fig (so on-screen fig remains unchanged)
+    fig_export = fig.to_dict()  # shallow copy via JSON dict
+    fig_export = go.Figure(fig_export)
+    if transparent:
+        fig_export.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    else:
+        fig_export.update_layout(paper_bgcolor=bg_color, plot_bgcolor=bg_color)
+
+    # --- PNG / SVG buttons ---
     col_png, col_svg = st.columns(2)
     try:
-        png_bytes = fig.to_image(format="png", scale=2)  # requires kaleido
+        png_bytes = fig_export.to_image(format="png", width=png_w, height=png_h, scale=png_scale)
         col_png.download_button("Download PNG", data=png_bytes, file_name="chart.png", mime="image/png")
     except Exception as e:
         col_png.info(f"PNG export unavailable (install/pin kaleido): {e}")
+
     try:
-        svg_bytes = fig.to_image(format="svg")
+        svg_bytes = fig_export.to_image(format="svg")  # SVG is resolution-independent
         col_svg.download_button("Download SVG", data=svg_bytes, file_name="chart.svg", mime="image/svg+xml")
     except Exception as e:
         col_svg.info(f"SVG export unavailable (install/pin kaleido): {e}")
 
-st.download_button("Download combined filtered data (CSV)",
-                   data=data.to_csv(index=False).encode("utf-8"),
-                   file_name="combined_filtered.csv", mime="text/csv")
+    # Optional quick info
+    st.caption(f"Output resolution (after scale): **{int(png_w * png_scale)} × {int(png_h * png_scale)} px**")
+
 
 # Optional previews & debug
 show_preview = st.session_state.get("_show_preview", False) or False  # keep sidebar values above
