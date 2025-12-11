@@ -123,7 +123,7 @@ with st.sidebar:
     st.header("Upload & Options")
     files = st.file_uploader("Upload one or more CSV files", type=["csv"], accept_multiple_files=True)
 
-    display_mode = st.radio(
+    display_mode = st.radio(git commit
         "Display mode",
         ["Overlay (compare on same axes)", "Stacked (one panel per file)"],
         index=0 if qp_get_str("mode", "overlay").lower() == "overlay" else 1
@@ -137,7 +137,7 @@ with st.sidebar:
     resample_rule = st.selectbox(
         "Resample (time aggregation)",
         ["None", "0.5s", "1s", "5s", "10s", "30s", "1min", "5min"],
-        index=["None", "1s", "5s", "10s", "30s", "1min", "5min"].index(qp_get_str("rs", "5s"))
+        index=["None", "0.5s", "1s", "5s", "10s", "30s", "1min", "5min"].index(qp_get_str("rs", "5s"))
     )
     aggregator = st.selectbox(
         "Aggregation", ["mean", "median", "min", "max"],
