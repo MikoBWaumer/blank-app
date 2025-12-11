@@ -123,7 +123,7 @@ with st.sidebar:
     st.header("Upload & Options")
     files = st.file_uploader("Upload one or more CSV files", type=["csv"], accept_multiple_files=True)
 
-    display_mode = st.radio(git commit
+    display_mode = st.radio(
         "Display mode",
         ["Overlay (compare on same axes)", "Stacked (one panel per file)"],
         index=0 if qp_get_str("mode", "overlay").lower() == "overlay" else 1
