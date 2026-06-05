@@ -88,16 +88,11 @@ def numeric_coercion_audit(df_before: pd.DataFrame, cols: List[str]) -> Dict[str
 
 
 def count_voltage_spikes(series: pd.Series) -> int:
-    """Count local cap_v peaks above a small noise threshold."""
+    """Count how many samples in cap_v rise above 3 V."""
     s = pd.to_numeric(series, errors="coerce").dropna().astype(float)
-    if len(s) < 3:
+    if s.empty:
         return 0
-    noise = max(0.05, float(s.std(ddof=0) * 0.2))
-    baseline = float(s.mean())
-    rising = s.diff().fillna(0.0) > 0
-    falling = s.diff().fillna(0.0) < 0
-    peaks = (rising.shift(fill_value=False) & falling) & (s >= baseline + noise)
-    return int(peaks.sum())
+    return int((s > 3.0).sum())
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Presets via URL query params
