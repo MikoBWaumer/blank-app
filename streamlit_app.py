@@ -150,7 +150,7 @@ with st.sidebar:
     enable_deadband = st.checkbox("Enable deadband", value=qp_get_bool("db", True))
     deadband_target = st.multiselect(
         "Apply to columns",
-        ["pressure_bar", "voltage_v", "current_mA", "moisture2_v", "moisture3_v"],
+        ["pressure_bar", "voltage_v", "cap_v", "current_mA", "moisture2_v", "moisture3_v"],
         default=["pressure_bar"]
     )
     band_abs = st.number_input("Absolute band (same units as signal)", value=qp_get_float("db_abs", 0.02), step=0.01, format="%.5f")
@@ -274,7 +274,10 @@ def load_one(file_bytes: bytes, name: str, usecols: List[str]) -> pd.DataFrame:
     return df
 
 # Only read the columns you care about
-required = ["timestamp_iso", "pressure_bar", "source"]
+required = [
+    "timestamp_iso", "pressure_bar", "voltage_v", "cap_v",
+    "current_mA", "moisture2_v", "moisture3_v", "relay_on", "source"
+]
 loaded: Dict[str, pd.DataFrame] = {f.name: load_one(f.getvalue(), f.name, required) for f in files}
 
 # numeric intersection across files
@@ -284,7 +287,7 @@ for _, cols in numeric_by_file.items():
     numeric_intersection &= set(cols)
 numeric_intersection = sorted(numeric_intersection)
 
-ordered_numeric = [c for c in ["pressure_bar", "voltage_v", "current_mA", "moisture2_v", "moisture3_v", "relay_on"]
+ordered_numeric = [c for c in ["pressure_bar", "voltage_v", "cap_v", "current_mA", "moisture2_v", "moisture3_v", "relay_on"]
                    if c in numeric_intersection]
 for c in numeric_intersection:
     if c not in ordered_numeric:
