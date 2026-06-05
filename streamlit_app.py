@@ -719,8 +719,17 @@ if not HAS_PLOTLY:
 fig = make_overlay_figure(data) if (len(loaded) == 1 or display_mode.startswith("Overlay")) else make_stacked_figure(data)
 st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
 
-cap_v_spike_count = count_voltage_spikes(data["cap_v"]) if "cap_v" in data.columns else 0
-st.caption(f"Voltage spikes in cap_v: {cap_v_spike_count}")
+if "cap_v" in data.columns:
+    cap_v_spike_counts = (
+        data.groupby("source", sort=False)["cap_v"]
+        .apply(count_voltage_spikes)
+        .reset_index(name="spikes")
+    )
+    if len(cap_v_spike_counts) == 1:
+        st.caption(f"Voltage spikes in cap_v: {int(cap_v_spike_counts.iloc[0]['spikes'])}")
+    else:
+        for _, row in cap_v_spike_counts.iterrows():
+            st.caption(f"{pretty_name(row['source'])}: {int(row['spikes'])} voltage spike(s) in cap_v")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Export (data & image)
