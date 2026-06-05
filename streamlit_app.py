@@ -86,6 +86,19 @@ def numeric_coercion_audit(df_before: pd.DataFrame, cols: List[str]) -> Dict[str
             report[c] = int(max(0, na1 - na0))
     return report
 
+
+def count_voltage_spikes(series: pd.Series) -> int:
+    """Count local cap_v peaks above a small noise threshold."""
+    s = pd.to_numeric(series, errors="coerce").dropna().astype(float)
+    if len(s) < 3:
+        return 0
+    noise = max(0.05, float(s.std(ddof=0) * 0.2))
+    baseline = float(s.mean())
+    rising = s.diff().fillna(0.0) > 0
+    falling = s.diff().fillna(0.0) < 0
+    peaks = (rising.shift(fill_value=False) & falling) & (s >= baseline + noise)
+    return int(peaks.sum())
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Presets via URL query params
 # ──────────────────────────────────────────────────────────────────────────────
@@ -454,6 +467,28 @@ for col in ["pressure_bar", "pressure_roll_mean"]:
         else:
             display_cols_map[col] = col
 
+if "cap_v" in data.columns and "pressure_bar" in data.columns:
+    p = data["pressure_bar"].astype(float).dropna()
+    c = data["cap_v"].astype(float).dropna()
+    if len(p) and len(c):
+        p_min, p_max = float(p.min()), float(p.max())
+        c_min, c_max = float(c.min()), float(c.max())
+        if c_max != c_min and p_max != p_min:
+            data["cap_v_scaled"] = p_min + (data["cap_v"].astype(float) - c_min) * (p_max - p_min) / (c_max - c_min)
+        else:
+            data["cap_v_scaled"] = data["cap_v"].astype(float)
+    else:
+        data["cap_v_scaled"] = data["cap_v"].astype(float)
+
+
+def plot_label(col: str) -> str:
+    if col.startswith("pressure_"):
+        return f"pressure ({pressure_label})"
+    if col == "cap_v":
+        return "cap_v (scaled to pressure window)"
+    return col
+
+
 y_cols_display: List[str] = [display_cols_map.get(c, c) for c in y_cols]
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -568,13 +603,15 @@ def x_key(df: pd.DataFrame) -> str:
 def make_overlay_figure(df: pd.DataFrame) -> "go.Figure":
     fig = go.Figure()
     xk = x_key(df)
-    for y in y_cols_display:
+    for y in y_cols:
+        plot_col = "cap_v_scaled" if (y == "cap_v" and "cap_v_scaled" in df.columns) else y
+        plot_name = plot_label(y)
         for source, g in df.groupby("source", sort=False):
-            fig.add_trace(go.Scatter(x=g[xk], y=g[y], mode="lines",
-                                     name=f"{pretty_name(source)} · {y}",
+            fig.add_trace(go.Scatter(x=g[xk], y=g[plot_col], mode="lines",
+                                     name=f"{pretty_name(source)} · {plot_name}",
                                      legendgroup=source, line=dict(width=1),
                                      opacity=overlay_opacity))
-            if show_extrema: add_extrema_markers(fig, g, xk, y, source)
+            if show_extrema: add_extrema_markers(fig, g, xk, plot_col, source)
     if show_relay and "relay_on" in df.columns:
         try:
             y_min = float(min(df[y].min() for y in y_cols_display))
@@ -592,10 +629,7 @@ def make_overlay_figure(df: pd.DataFrame) -> "go.Figure":
     if shade_relay:
         add_relay_shading(fig, df, xk, color=shade_color, opacity=shade_opacity)
 
-    y_title = ", ".join([
-        "pressure ({})".format(pressure_label) if c.startswith("pressure_") else c
-        for c in y_cols_display
-    ])
+    y_title = ", ".join([plot_label(c) for c in y_cols])
     fig.update_layout(
         height=550,
         margin=dict(l=10, r=10, t=40, b=80),
@@ -618,14 +652,16 @@ def make_stacked_figure(df: pd.DataFrame) -> "go.Figure":
     xk = x_key(df)
     for i, source in enumerate(sources, start=1):
         g = df[df["source"] == source]
-        for y in y_cols_display:
+        for y in y_cols:
+            plot_col = "cap_v_scaled" if (y == "cap_v" and "cap_v_scaled" in g.columns) else y
+            plot_name = plot_label(y)
             fig.add_trace(go.Scatter(
-                x=g[xk], y=g[y], mode="lines",
-                name=f"{pretty_name(source)} · {y}",
+                x=g[xk], y=g[plot_col], mode="lines",
+                name=f"{pretty_name(source)} · {plot_name}",
                 line=dict(width=1), opacity=1.0
             ), row=i, col=1)
             if show_extrema:
-                add_extrema_markers(fig, g, xk, y, source)
+                add_extrema_markers(fig, g, xk, plot_col, source)
         if show_relay and "relay_on" in g.columns:
             try:
                 y_min = float(min(g[y].min() for y in y_cols_display))
@@ -671,10 +707,7 @@ def make_stacked_figure(df: pd.DataFrame) -> "go.Figure":
     apply_legend_position(fig, legend_location)
 
     # Y axis title on right-most subplot
-    fig.update_yaxes(title_text=", ".join([
-        "pressure ({})".format(pressure_label) if c.startswith("pressure_") else c
-        for c in y_cols_display
-    ]), col=1)
+    fig.update_yaxes(title_text=", ".join([plot_label(c) for c in y_cols]), col=1)
     return fig
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -687,6 +720,9 @@ if not HAS_PLOTLY:
 
 fig = make_overlay_figure(data) if (len(loaded) == 1 or display_mode.startswith("Overlay")) else make_stacked_figure(data)
 st.plotly_chart(fig, width="stretch", config={"displaylogo": False})
+
+cap_v_spike_count = count_voltage_spikes(data["cap_v"]) if "cap_v" in data.columns else 0
+st.caption(f"Voltage spikes in cap_v: {cap_v_spike_count}")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Export (data & image)
