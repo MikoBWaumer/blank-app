@@ -88,11 +88,14 @@ def numeric_coercion_audit(df_before: pd.DataFrame, cols: List[str]) -> Dict[str
 
 
 def count_voltage_spikes(series: pd.Series) -> int:
-    """Count how many samples in cap_v rise above 3 V."""
-    s = pd.to_numeric(series, errors="coerce").dropna().astype(float)
+    """Count how many times cap_v crosses above 3 V."""
+    s = pd.to_numeric(series, errors="coerce").fillna(np.nan).astype(float)
     if s.empty:
         return 0
-    return int((s > 3.0).sum())
+
+    above = s > 3.0
+    crossings = above & ~above.shift(fill_value=False)
+    return int(crossings.sum())
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Presets via URL query params
